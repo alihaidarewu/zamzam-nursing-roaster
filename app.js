@@ -41,10 +41,7 @@ const SHIFT_N   = 'N';    // Night    22:00–06:00
 const SHIFT_OFF = 'OFF';  // Rest day
 
 const SAMPLE_NURSES = [
-  'Amina Rahman', 'Laila Akter', 'Shamima Khatun', 'Farzana Sultana', 'Rumana Islam',
-  'Nusrat Jahan', 'Rabeya Begum', 'Sadia Parveen', 'Taslima Begum', 'Mina Akter',
-  'Jannatul Ferdous', 'Roksana Akhter', 'Naznin Nahar', 'Marium Sultana', 'Khadija Hasan'
-];
+  'Sarmin', 'Fatema', 'Rimi', 'Sathi', 'Antora'];
 
 /*
  * THE CANONICAL CYCLE — 7 slots, repeating forever.
