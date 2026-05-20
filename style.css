@@ -1062,18 +1062,16 @@ img, svg { display: block; }
   .logo-icon { width: 44px; height: 44px; }
 }
 
-/* Stacked roster table for very narrow screens */
+/* Keep table layout on small screens but allow horizontal scrolling */
 @media (max-width: 520px) {
-  .roster-table thead { display: none; }
-  .roster-table, .roster-table tbody, .roster-table tr, .roster-table td { display: block; width: 100%; }
-  .roster-table tr { background: #fff; border: 1px solid var(--border); padding: 12px; margin-bottom: 12px; border-radius: var(--radius-sm); }
-  .roster-table td { padding: 6px 0; border: none; }
-  .roster-table td::before { content: attr(data-label); display: block; font-weight: 700; color: var(--teal-700); margin-bottom: 6px; font-size: .78rem; }
-  .nurses-cell { display: block; }
-  .nurse-pill { display: inline-block; margin: 4px 6px 0 0; }
-  .num-cell { text-align: left; width: auto; }
-  .date-cell, .day-cell { display: block; }
-  .table-wrap { overflow: visible; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .roster-table { display: table; width: 100%; min-width: 700px; font-size: .82rem; }
+  .roster-table thead { display: table-header-group; }
+  .roster-table tr { display: table-row; background: transparent; border: none; margin: 0; }
+  .roster-table td, .roster-table th { display: table-cell; padding: 9px 10px; white-space: nowrap; vertical-align: middle; }
+  .nurses-cell { display: flex; flex-direction: column; gap: 6px; }
+  .nurse-pill { font-size: .78rem; padding: 3px 8px; }
+  .num-cell { text-align: center; width: 44px; }
 }
 
 /* ── Print media query ─────────────────────────────────────── */
