@@ -522,81 +522,211 @@ function toggleBreakdown() {
 }
 
 /* ── PDF Export ──────────────────────────────────────────── */
-async function downloadPDF() {
+function downloadPDF() {
   if (!currentRoster) return;
   showLoading('Preparing PDF…');
 
-  const ph = $('printHeader');
-  const pf = document.querySelector('.print-footer');
-  ph.style.display = 'flex';
-  pf.style.display = 'block';
-
-  await new Promise(r => setTimeout(r, 150));
-
   try {
     const { jsPDF } = window.jspdf;
-    const options = { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: 1200 };
-
-    // Capture header, footer and full area separately so we can repeat header/footer on each PDF page
-    const headerCanvas = await html2canvas(ph, options);
-    const footerCanvas = await html2canvas(pf, options);
-    const fullCanvas   = await html2canvas($('printArea'), options);
-
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pW  = pdf.internal.pageSize.getWidth();
-    const pH  = pdf.internal.pageSize.getHeight();
-    const ratio = pW / fullCanvas.width;
 
-    const headerH = Math.round(headerCanvas.height);
-    const footerH = Math.round(footerCanvas.height);
-    const pagePxH = Math.floor(pH / ratio);
-    const contentPerPage = pagePxH - headerH - footerH;
-    const contentStart = headerH;
-    const contentEnd = Math.max(headerH, fullCanvas.height - footerH);
-    let y = contentStart;
-    let pageIndex = 0;
+    /* ── Page dimensions & margins ── */
+    const pageW  = 210;
+    const pageH  = 297;
+    const marginL = 10;
+    const marginR = 10;
+    const marginT = 12;
+    const marginB = 12;
+    const usableW = pageW - marginL - marginR;   // 190 mm
 
-    while (y < contentEnd) {
-      const sliceH = Math.min(contentPerPage, contentEnd - y);
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = fullCanvas.width;
-      pageCanvas.height = headerH + Math.max(0, sliceH) + footerH;
-      const ctx = pageCanvas.getContext('2d');
+    /* ── Column widths (no serial, no rest) ──
+       Date | Day | Morning | Evening | Night
+    */
+    const cols = [
+      { label: 'Date',    w: 28 },
+      { label: 'Day',     w: 14 },
+      { label: 'Morning', w: 48 },
+      { label: 'Evening', w: 50 },
+      { label: 'Night',   w: 50 },
+    ];
+    // stretch to fill usableW
+    const totalW = cols.reduce((s, c) => s + c.w, 0);
+    const stretch = usableW / totalW;
+    cols.forEach(c => { c.w = c.w * stretch; });
 
-      // draw header
-      ctx.drawImage(headerCanvas, 0, 0);
+    /* ── Header block (clinic info) ── */
+    function drawPageHeader(doc, startDate, endDate) {
+      const x = marginL;
+      let y = marginT;
 
-      // draw slice of main content (skip header region in fullCanvas)
-      if (sliceH > 0) {
-        ctx.drawImage(fullCanvas, 0, y, fullCanvas.width, sliceH, 0, headerH, fullCanvas.width, sliceH);
-      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(0);
+      doc.text('Chapai Zamzam Clinic & Diagnostic Center', pageW / 2, y, { align: 'center' });
+      y += 6;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Nursing Roster Schedule', pageW / 2, y, { align: 'center' });
+      y += 5;
 
-      // draw footer at bottom
-      ctx.drawImage(footerCanvas, 0, headerH + Math.max(0, sliceH));
+      // Period line
+      const periodStr = `Period: ${fmt(startDate)} — ${fmt(endDate)}`;
+      doc.setFontSize(9);
+      doc.text(periodStr, pageW / 2, y, { align: 'center' });
+      y += 4;
 
-      const imgData = pageCanvas.toDataURL('image/png');
-      if (pageIndex > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, 0, pW, pageCanvas.height * ratio);
+      // Horizontal rule
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.4);
+      doc.line(marginL, y, pageW - marginR, y);
+      y += 3;
 
-      // page number
-      pdf.setFontSize(9);
-      pdf.setTextColor(100);
-      pdf.text(`Page ${pageIndex + 1}`, pW - 20, pH - 8);
-
-      y += sliceH;
-      pageIndex++;
-      if (sliceH <= 0) break;
+      return y; // y after header
     }
 
-    const startDate = currentRoster.dates[0];
-    pdf.save(`ZamzamClinic_Roster_${fmt(startDate).replace(/ /g, '_')}.pdf`);
+    /* ── Draw table header row ── */
+    function drawTableHeader(doc, y) {
+      const rowH = 7;
+      doc.setFillColor(220, 220, 220);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.3);
+      doc.rect(marginL, y, usableW, rowH, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(0);
+
+      let x = marginL;
+      cols.forEach(col => {
+        doc.text(col.label, x + col.w / 2, y + rowH / 2 + 1.2, { align: 'center' });
+        x += col.w;
+      });
+
+      // vertical lines inside header
+      x = marginL;
+      cols.forEach((col, i) => {
+        if (i > 0) {
+          doc.setDrawColor(0);
+          doc.line(x, y, x, y + rowH);
+        }
+        x += col.w;
+      });
+
+      return y + rowH;
+    }
+
+    /* ── Draw one data row ── */
+    function drawRow(doc, y, row, rowIndex) {
+      const roster = currentRoster.roster;
+      const entry  = roster[rowIndex];
+      const dow    = entry.date.getDay();
+      const isWeekend = dow === 5 || dow === 6; // Fri/Sat
+
+      // Determine row height based on max nurses in any shift cell
+      const maxNurses = Math.max(
+        (entry.morning || []).length,
+        (entry.evening || []).length,
+        (entry.night   || []).length,
+        1
+      );
+      const lineH = 4.5;
+      const padV  = 2;
+      const rowH  = maxNurses * lineH + padV * 2;
+
+      // Background
+      if (isWeekend) {
+        doc.setFillColor(255, 245, 220);
+      } else {
+        doc.setFillColor(rowIndex % 2 === 0 ? 255 : 248, rowIndex % 2 === 0 ? 255 : 248, rowIndex % 2 === 0 ? 255 : 248);
+      }
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.2);
+      doc.rect(marginL, y, usableW, rowH, 'FD');
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+
+      const cells = [
+        fmt(entry.date),
+        DAY_NAMES[dow].slice(0, 3),
+        (entry.morning || []).join('\n') || '—',
+        (entry.evening || []).join('\n') || '—',
+        (entry.night   || []).join('\n') || '—',
+      ];
+
+      let x = marginL;
+      cells.forEach((text, i) => {
+        const col = cols[i];
+        const lines = text.split('\n');
+        lines.forEach((line, li) => {
+          doc.text(line, x + col.w / 2, y + padV + lineH * li + lineH * 0.65, { align: 'center' });
+        });
+        // vertical divider
+        if (i > 0) {
+          doc.setDrawColor(180, 180, 180);
+          doc.line(x, y, x, y + rowH);
+        }
+        x += col.w;
+      });
+
+      // bottom border
+      doc.setDrawColor(180, 180, 180);
+      doc.line(marginL, y + rowH, pageW - marginR, y + rowH);
+      // left & right border
+      doc.line(marginL, y, marginL, y + rowH);
+      doc.line(pageW - marginR, y, pageW - marginR, y + rowH);
+
+      return y + rowH;
+    }
+
+    /* ── Footer ── */
+    function drawFooter(doc, pageNum) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.setTextColor(120);
+      doc.text(
+        'Generated by Chapai Zamzam Clinic Nursing Roster System  •  Developed by Ali Haidar',
+        pageW / 2, pageH - 6, { align: 'center' }
+      );
+      doc.text(`Page ${pageNum}`, pageW - marginR, pageH - 6, { align: 'right' });
+    }
+
+    /* ── Build pages ── */
+    const roster     = currentRoster.roster;
+    const startDate  = roster[0].date;
+    const endDate    = roster[roster.length - 1].date;
+    let pageNum      = 1;
+
+    let curY = drawPageHeader(pdf, startDate, endDate);
+    curY = drawTableHeader(pdf, curY);
+
+    for (let i = 0; i < roster.length; i++) {
+      // Estimate row height
+      const entry = roster[i];
+      const maxN  = Math.max((entry.morning||[]).length, (entry.evening||[]).length, (entry.night||[]).length, 1);
+      const estH  = maxN * 4.5 + 4;
+
+      if (curY + estH > pageH - marginB - 10) {
+        drawFooter(pdf, pageNum);
+        pdf.addPage();
+        pageNum++;
+        curY = drawPageHeader(pdf, startDate, endDate);
+        curY = drawTableHeader(pdf, curY);
+      }
+
+      curY = drawRow(pdf, curY, null, i);
+    }
+
+    drawFooter(pdf, pageNum);
+
+    const startStr = fmt(startDate).replace(/ /g, '_');
+    pdf.save(`ZamzamClinic_Roster_${startStr}.pdf`);
     showNotification('PDF downloaded successfully!', 'success');
   } catch (err) {
     console.error(err);
     showNotification('PDF generation failed. Please try again.', 'error');
   } finally {
-    ph.style.display = 'none';
-    pf.style.display = 'none';
     hideLoading();
   }
 }
