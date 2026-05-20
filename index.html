@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nursing Roster Generator — Chapai Zamzam Clinic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- Ambient background particles -->
+<div class="bg-particles" id="bgParticles"></div>
+
+<!-- ── HEADER ─────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <div class="logo-icon">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <h1 class="clinic-name">Chapai Zamzam Clinic</h1>
+        <span class="clinic-sub">& Diagnostic Center</span>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="badge">Nursing Roster System</div>
+      <div class="developer-tag">Developed by <strong><a class="developer" href="https://ali-haidar-portfolio.vercel.app/"> Ali Haidar</a></strong></div>
+    </div>
+  </div>
+  <div class="header-wave">
+    <svg viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,30 C360,80 1080,-20 1440,30 L1440,60 L0,60Z" fill="var(--bg-base)"/></svg>
+  </div>
+</header>
+
+<!-- ── MAIN CONTENT ───────────────────────────────────── -->
+<main class="container">
+
+  <!-- Step 1: Date Selection -->
+  <section class="card" id="dateSection">
+    <div class="card-header">
+      <span class="step-badge">01</span>
+      <div>
+        <h2>Schedule Period</h2>
+        <p class="card-sub">Choose the roster date range</p>
+      </div>
+    </div>
+    <div class="date-mode-tabs">
+      <button type="button" class="tab-btn active" data-mode="month" onclick="switchDateMode('month')">Monthly</button>
+      <button type="button" class="tab-btn" data-mode="custom" onclick="switchDateMode('custom')">Custom Range</button>
+    </div>
+
+    <div id="monthMode" class="date-inputs">
+      <div class="input-group">
+        <label>Month</label>
+        <select id="monthSelect" class="styled-select"></select>
+      </div>
+      <div class="input-group">
+        <label>Year</label>
+        <select id="yearSelect" class="styled-select"></select>
+      </div>
+    </div>
+
+    <div id="customMode" class="date-inputs" style="display:none">
+      <div class="input-group">
+        <label>Start Date</label>
+        <input type="date" id="startDate" class="styled-input"/>
+      </div>
+      <div class="input-group">
+        <label>End Date</label>
+        <input type="date" id="endDate" class="styled-input"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: Nurse Management -->
+  <section class="card" id="nurseSection">
+    <div class="card-header">
+      <span class="step-badge">02</span>
+      <div>
+        <h2>Nursing Staff</h2>
+        <p class="card-sub">Add nurses to the roster</p>
+      </div>
+    </div>
+    <div class="nurse-add-row">
+      <input type="text" id="nurseInput" class="styled-input" placeholder="Enter nurse name…" onkeydown="if(event.key==='Enter')addNurse()"/>
+      <button type="button" class="btn btn-accent" onclick="addNurse()">
+        <span class="btn-icon">+</span> Add Nurse
+      </button>
+    </div>
+    <div id="nurseList" class="nurse-list"></div>
+    <div id="nurseCount" class="nurse-count-bar"></div>
+  </section>
+
+  <!-- Step 3: Shift Settings -->
+  <section class="card" id="shiftSection">
+    <div class="card-header">
+      <span class="step-badge">03</span>
+      <div>
+        <h2>Shift Configuration</h2>
+        <p class="card-sub">Nurses per shift per day</p>
+      </div>
+    </div>
+    <div class="shift-settings">
+      <div class="shift-card morning">
+        <div class="shift-icon">🌅</div>
+        <div class="shift-info">
+          <span class="shift-label">Morning Shift</span>
+          <span class="shift-time">08:00 — 14:00</span>
+        </div>
+        <input type="number" id="morningCount" class="shift-num" value="1" min="1" max="10"/>
+        <span class="shift-unit">nurse(s)</span>
+      </div>
+      <div class="shift-card evening">
+        <div class="shift-icon">🌇</div>
+        <div class="shift-info">
+          <span class="shift-label">Evening Shift</span>
+          <span class="shift-time">14:00 — 20:00</span>
+        </div>
+        <input type="number" id="eveningCount" class="shift-num" value="1" min="1" max="10"/>
+        <span class="shift-unit">nurse(s)</span>
+      </div>
+      <div class="shift-card night">
+        <div class="shift-icon">🌙</div>
+        <div class="shift-info">
+          <span class="shift-label">Night Shift</span>
+          <span class="shift-time">20:00 — 08:00</span>
+        </div>
+        <input type="number" id="nightCount" class="shift-num" value="1" min="1" max="10"/>
+        <span class="shift-unit">nurse(s)</span>
+      </div>
+    </div>
+
+    <!-- Rotation Rule Banner -->
+    <div class="rotation-info-banner">
+      <div class="rib-icon">🔄</div>
+      <div class="rib-text">
+        <div class="rib-title">7-Day Rotation Cycle — Auto Applied Per Nurse</div>
+        <div class="rib-list">
+          <span class="rib-pill n">🌙 Day 1: Night</span>
+          <span class="rib-pill n">🌙 Day 2: Night (back Day 3 morning)</span>
+          <span class="rib-pill off">💤 Day 3: OFF (mandatory rest)</span>
+          <span class="rib-pill e">🌇 Day 4: Evening</span>
+          <span class="rib-pill e">🌇 Day 5: Evening</span>
+          <span class="rib-pill m">🌅 Day 6: Morning</span>
+          <span class="rib-pill m">🌅 Day 7: Morning → 🔄 repeat</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action Buttons -->
+  <div class="action-row">
+    <button type="button" class="btn btn-primary btn-xl" onclick="generateRoster()" aria-label="Generate roster">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Generate Roster
+    </button>
+    <button type="button" class="btn btn-secondary btn-xl" onclick="regenerateRoster()" id="regenBtn" style="display:none" aria-label="Regenerate roster">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      Regenerate
+    </button>
+    <button type="button" class="btn btn-success btn-xl" onclick="downloadPDF()" id="pdfBtn" style="display:none" aria-label="Download roster PDF">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6M9 13l3 3 3-3"/><path d="M3 15a4 4 0 004 4h10a4 4 0 004-4V9a4 4 0 00-4-4H7a4 4 0 00-4 4v6z"/></svg>
+      Download PDF
+    </button>
+  </div>
+
+  <!-- Notification Area -->
+    <div id="notification" class="notification" style="display:none" aria-live="polite" role="status"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display:none">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p id="loadingText">Generating roster…</p>
+    </div>
+  </div>
+
+  <!-- Roster Output -->
+  <section id="rosterSection" class="card roster-card" style="display:none">
+    <div class="card-header">
+      <span class="step-badge">04</span>
+      <div>
+        <h2>Generated Roster</h2>
+        <p class="card-sub" id="rosterPeriodLabel"></p>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div id="statsRow" class="stats-row"></div>
+
+    <!-- The printable area -->
+    <div id="printArea">
+      <div class="print-header" id="printHeader">
+        <div class="print-logo-row">
+          <div class="print-cross">✚</div>
+          <div>
+            <div class="print-clinic-name">Chapai Zamzam Clinic & Diagnostic Center</div>
+            <div class="print-clinic-sub">Nursing Roster Schedule</div>
+          </div>
+        </div>
+        <div class="print-meta" id="printMeta"></div>
+      </div>
+      <div class="table-wrap">
+        <table id="rosterTable" class="roster-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th class="morning-col">🌅 Morning</th>
+              <th class="evening-col">🌇 Evening</th>
+              <th class="night-col">🌙 Night</th>
+              <th class="off-col">💤 Rest / Off</th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="print-footer">Generated by Chapai Zamzam Clinic Nursing Roster System &bull; Developed by Ali Haidar</div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p class="footer-dev">Developed with ♥ by <strong><a class="developer" href="https://ali-haidar-portfolio.vercel.app/">Ali Haidar</a></strong></p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
